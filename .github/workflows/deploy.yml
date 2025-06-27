@@ -17,7 +17,7 @@ jobs:
         # Use '3.22.x' or the exact version your project is using, e.g., '3.22.0'
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.6.x" # <--- IMPORTANT: Adjust this to your Flutter version!
+          flutter-version: "3.27.x" # <--- IMPORTANT: Adjust this to your Flutter version!
 
       - name: Enable web
         run: flutter config --enable-web
