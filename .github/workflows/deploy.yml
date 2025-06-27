@@ -1,0 +1,64 @@
+name: Deploy Flutter Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Your primary branch is likely 'main'
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        # Use '3.22.x' or the exact version your project is using, e.g., '3.22.0'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.x" # <--- IMPORTANT: Adjust this to your Flutter version!
+
+      - name: Enable web
+        run: flutter config --enable-web
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Increment version
+        id: increment_version
+        run: |
+          # Read current version from pubspec.yaml
+          current_version=$(grep "version:" pubspec.yaml | awk '{print $2}')
+          version_name=$(echo $current_version | cut -d'+' -f1)
+          build_number=$(echo $current_version | cut -d'+' -f2 || echo 0) # Handle initial case where +number might not exist
+
+          # Increment build number
+          new_build_number=$((build_number + 1))
+          new_version="$version_name+$new_build_number"
+
+          # Update pubspec.yaml
+          sed -i "s/version: $current_version/version: $new_version/" pubspec.yaml
+          echo "Updated version to: $new_version"
+
+          # Output the new version for later steps
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Build web app
+        run: flutter build web --release
+
+      - name: Commit version change (important!)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "Bump version to ${{ steps.increment_version.outputs.new_version }}" || echo "No version change to commit."
+          git push origin main || echo "No changes to push."
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: gh-pages # This is the branch that GitHub Pages will serve from
+          force_orphan: true
